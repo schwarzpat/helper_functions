@@ -20,7 +20,7 @@ his script provides a function called using() that checks if R packages used in 
 To use the function, simply call it with the names of the packages you want to check. For example:
 
 ```bash
-using("tidyverse", "dplyr", "ggplot2")
+using("rstanarm", "dplyr", "ggplot2")
 ```
 
 
