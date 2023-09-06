@@ -29,8 +29,10 @@ def match_and_merge_accounts_efficient(input_excel_path, output_excel_path, iban
     # Perform Merge Operation
     df_merged = pd.merge(df_melt, df_csv, left_on='account_value', right_on='iban', how='left')
     
-    # Reshape back to original form
-    df_unmelt = df_merged.pivot(index='unique_id', columns='account_type', values=['iban'] + list(df_csv.columns.difference(['iban'])))
+    # Reshape back to original form using pivot_table
+    df_unmelt = df_merged.pivot_table(index='unique_id', columns='account_type', 
+                                     values=['iban'] + list(df_csv.columns.difference(['iban'])),
+                                     aggfunc='first')
     
     # Merge additional columns and 'iban' back to original DataFrame
     df_excel = pd.merge(df_excel, df_unmelt, left_on='unique_id', right_index=True, how='left')
@@ -40,11 +42,3 @@ def match_and_merge_accounts_efficient(input_excel_path, output_excel_path, iban
     
     # Data Exportation
     df_excel.to_excel(output_excel_path, index=False)
-
-
-input_excel_path = 'path_to_input_excel_file.xlsx'
-output_excel_path = 'path_to_output_excel_file.xlsx'
-iban_csv_path = 'path_to_iban_csv_file.csv'
-
-match_and_merge_accounts_efficient(input_excel_path, output_excel_path, iban_csv_path)
-
