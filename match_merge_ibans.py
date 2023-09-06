@@ -34,3 +34,10 @@ def match_and_merge_ibans(input_excel_path, output_excel_path, iban_csv_path):
     
     # Data Exportation
     df_excel.to_excel(output_excel_path, index=False)
+
+input_excel_path = 'path_to_input_excel_file.xlsx'
+output_excel_path = 'path_to_output_excel_file.xlsx'
+iban_csv_path = 'path_to_iban_csv_file.csv'
+
+match_and_merge_accounts_efficient(input_excel_path, output_excel_path, iban_csv_path)
+
