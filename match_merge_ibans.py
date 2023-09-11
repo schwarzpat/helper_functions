@@ -47,3 +47,60 @@ output_excel_path = 'path_to_output_excel_file.xlsx'
 iban_csv_path = 'path_to_iban_csv_file.csv'
 
 match_and_merge_accounts_efficient(input_excel_path, output_excel_path, iban_csv_path)
+
+
+
+-- Assume excel_data and csv_data are the result of some queries
+WITH excel_data AS (
+    -- Your SQL query here that generates excel_data
+),
+csv_data AS (
+    -- Your SQL query here that generates csv_data
+),
+-- Filter NULLs from csv_data
+filtered_csv_data AS (
+    SELECT * FROM csv_data WHERE account_id IS NOT NULL
+),
+-- Melt the excel_data table
+melted_excel_data AS (
+    SELECT 
+        alert_identifier,
+        'ordering_account' AS account_type,
+        ordering_account AS account_value
+    FROM excel_data WHERE ordering_account IS NOT NULL
+    UNION ALL
+    SELECT 
+        alert_identifier,
+        'beneficiary_account' AS account_type,
+        beneficiary_account AS account_value
+    FROM excel_data WHERE beneficiary_account IS NOT NULL
+    UNION ALL
+    SELECT 
+        alert_identifier,
+        'creditor_account' AS account_type,
+        creditor_account AS account_value
+    FROM excel_data WHERE creditor_account IS NOT NULL
+    UNION ALL
+    SELECT 
+        alert_identifier,
+        'debtor_account' AS account_type,
+        debtor_account AS account_value
+    FROM excel_data WHERE debtor_account IS NOT NULL
+),
+-- Perform the merge operation
+merged_excel_data AS (
+    SELECT 
+        e.alert_identifier,
+        e.account_type,
+        c.customer_id
+    FROM melted_excel_data e
+    LEFT JOIN filtered_csv_data c ON e.account_value = c.account_id
+)
+-- Merge the 'customer_id' and 'account_type' columns back into the original excel_data
+SELECT 
+    e.*,
+    m.customer_id,
+    m.account_type AS matched_account_type
+FROM excel_data e
+LEFT JOIN merged_excel_data m ON e.alert_identifier = m.alert_identifier;
+
