@@ -1,0 +1,60 @@
+import os
+import re
+from collections import defaultdict
+
+def unify_and_union_sql_queries(sql_dir):
+    """
+    Unify and concatenate SQL queries from files in a specified directory
+    using the UNION operator.
+
+    Parameters:
+        sql_dir (str): The directory containing SQL files.
+
+    Returns:
+        list: A list of unified SQL queries with consistent column orders.
+    """
+
+    # List to hold SQL queries
+    sql_queries = []
+
+    # Regular expression pattern to extract columns in 'SELECT ... FROM' clause
+    select_pattern = re.compile(r'SELECT (.*?) FROM', re.IGNORECASE)
+
+    # Read each SQL file and store the queries in the list
+    for filename in os.listdir(sql_dir):
+        if filename.endswith(".sql"):
+            with open(os.path.join(sql_dir, filename), 'r') as f:
+                sql_query = f.read()
+                sql_queries.append(sql_query)
+
+    # Dictionary to group similar queries
+    query_groups = defaultdict(list)
+
+    # Extract columns and group similar queries
+    for query in sql_queries:
+        columns_str = select_pattern.findall(query)[0]
+        columns_set = set(map(str.strip, columns_str.split(',')))
+        query_groups[frozenset(columns_set)].append(query)
+
+    # Standardize column order and concatenate queries using 'UNION'
+    final_queries = []
+    for columns_set, queries in query_groups.items():
+        # Standardize to the column order of the first query in the group
+        standard_columns_str = select_pattern.findall(queries[0])[0]
+        
+        # Modify each query in the group to have the standardized column order
+        modified_queries = []
+        for query in queries:
+            original_columns_str = select_pattern.findall(query)[0]
+            modified_query = query.replace(original_columns_str, standard_columns_str)
+            modified_queries.append(modified_query)
+        
+        # Concatenate all modified queries in the group using 'UNION'
+        final_query = " UNION ".join(modified_queries)
+        final_queries.append(final_query)
+
+    return final_queries
+
+# Usage
+sql_dir = "path/to/sql/files"
+final_queries = unify_and_union_sql_queries(sql_dir)
