@@ -61,7 +61,7 @@ def unify_and_union_sql_queries(sql_dir):
 class TestUnifyAndUnionSQLQueries(unittest.TestCase):
 
     def setUp(self):
-        self.test_dir = '/mnt/data/test_sql_dir'
+        self.test_dir = '/test_sql_dir'
         os.makedirs(self.test_dir, exist_ok=True)
 
     def tearDown(self):
