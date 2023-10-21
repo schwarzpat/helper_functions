@@ -1,3 +1,11 @@
+# Create a folder named 'sample_sql'
+# mkdir sample_sql
+# cd sample_sql
+# echo "SELECT id, name FROM table1;" > query1.sql
+# echo "SELECT name, id FROM table1;" > query2.sql
+# echo "SELECT age FROM table2;" > query3.sql
+# echo "SELECT salary FROM table3;" > query4.sql
+
 # Import required modules
 import os
 import re
