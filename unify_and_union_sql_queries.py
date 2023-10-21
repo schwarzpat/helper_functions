@@ -2,6 +2,7 @@
 import os
 import re
 from collections import defaultdict
+import unittest
 
 # Redefine the function to remove trailing semicolons from SQL queries
 def unify_and_union_sql_queries(sql_dir):
