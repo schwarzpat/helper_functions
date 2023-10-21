@@ -1,7 +1,9 @@
+# Import required modules
 import os
 import re
 from collections import defaultdict
 
+# Redefine the function to remove trailing semicolons from SQL queries
 def unify_and_union_sql_queries(sql_dir):
     """
     Unify and concatenate SQL queries from files in a specified directory
@@ -24,7 +26,7 @@ def unify_and_union_sql_queries(sql_dir):
     for filename in os.listdir(sql_dir):
         if filename.endswith(".sql"):
             with open(os.path.join(sql_dir, filename), 'r') as f:
-                sql_query = f.read()
+                sql_query = f.read().strip(';')  # Remove trailing semicolons
                 sql_queries.append(sql_query)
 
     # Dictionary to group similar queries
@@ -55,6 +57,54 @@ def unify_and_union_sql_queries(sql_dir):
 
     return final_queries
 
-# Usage
-sql_dir = "path/to/sql/files"
-final_queries = unify_and_union_sql_queries(sql_dir)
+class TestUnifyAndUnionSQLQueries(unittest.TestCase):
+
+    def setUp(self):
+        self.test_dir = '/mnt/data/test_sql_dir'
+        os.makedirs(self.test_dir, exist_ok=True)
+
+    def tearDown(self):
+        for filename in os.listdir(self.test_dir):
+            os.remove(os.path.join(self.test_dir, filename))
+        os.rmdir(self.test_dir)
+
+    def write_sql_files(self, queries):
+        for i, query in enumerate(queries):
+            with open(os.path.join(self.test_dir, f"query{i+1}.sql"), 'w') as f:
+                f.write(query)
+
+    def test_unify_and_union(self):
+        queries = [
+            "SELECT id, name FROM table1;",
+            "SELECT name, id FROM table1;",
+            "SELECT age FROM table2;",
+            "SELECT salary FROM table3;"
+        ]
+        self.write_sql_files(queries)
+
+        result = unify_and_union_sql_queries(self.test_dir)
+
+        expected1 = "SELECT id, name FROM table1 UNION SELECT id, name FROM table1"
+        expected2 = "SELECT age FROM table2"
+        expected3 = "SELECT salary FROM table3"
+
+        self.assertIn(expected1, result)
+        self.assertIn(expected2, result)
+        self.assertIn(expected3, result)
+
+    def test_empty_directory(self):
+        result = unify_and_union_sql_queries(self.test_dir)
+        self.assertEqual(result, [])
+
+    def test_single_query(self):
+        queries = ["SELECT id, name FROM table1;"]
+        self.write_sql_files(queries)
+
+        result = unify_and_union_sql_queries(self.test_dir)
+
+        expected = "SELECT id, name FROM table1"
+        self.assertEqual(result, [expected])
+
+# Run the unittests
+unittest.TextTestRunner().run(unittest.TestLoader().loadTestsFromTestCase(TestUnifyAndUnionSQLQueries))
+
