@@ -2,9 +2,9 @@
 library(dplyr)
 
 # Define the function
-replace_values <- function(tibble_1, tibble_2, old_col_t1, new_col_t1, target_col_t2) {
-  tibble_2 %>%
-    left_join(select(tibble_1, all_of(c(old_col_t1, new_col_t1))), 
+replace_values <- function(lookup_tibble, target_tibble, old_col_t1, new_col_t1, target_col_t2) {
+  target_tibble %>%
+    left_join(select(lookup_tibble, all_of(c(old_col_t1, new_col_t1))), 
               by = setNames(old_col_t1, target_col_t2)) %>%
     select(-all_of(target_col_t2)) %>%
     rename_with(~ target_col_t2, all_of(new_col_t1))
