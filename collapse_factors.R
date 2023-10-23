@@ -1,3 +1,6 @@
+library(embed)
+library(tidymodels)
+
 # Load the Ames Housing dataset and transform the Sale_Price column
 data(ames, package = "modeldata")
 ames$Sale_Price <- log10(ames$Sale_Price)
