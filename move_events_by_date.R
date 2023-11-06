@@ -154,3 +154,32 @@ test_that("Edge case test for pension", {
   df <- adjust_payments(df)
   expect_equal(df$pension, c(0))
 })
+
+# Determine first week day of a quarter
+
+# Define a function to find the first weekday of a quarter
+find_first_weekday_of_quarter <- function(date) {
+  while (wday(date) %in% c(6, 7)) { # 6 = Saturday, 7 = Sunday in lubridate using ISO
+    date <- date + 1
+  }
+  return(date)
+}
+
+# Create a data frame with a sequence of dates
+df <- tibble(
+  date = seq(ymd('2023-01-01'), ymd('2024-01-01'), by = 'day')
+)
+
+# Add a column to indicate the first day of the quarter that's not a weekend
+df <- df %>%
+  mutate(
+    firstDayOfQuarter = as.integer(date == find_first_weekday_of_quarter(floor_date(date, "quarter")))
+  )
+
+# Filter to show only the first day of each quarter
+df <- df %>%
+  filter(firstDayOfQuarter == 1)
+
+# Display the result
+print(df)
+
