@@ -181,3 +181,79 @@ df <- df %>%
 
 # Display the result with all dates and their indicator
 print(df)
+
+##########
+adjust_payments <- function(df, holiday_col, weekend_col, pay_day_col, pension_col) {
+  # Calculate weekend based on date column
+  df <- df %>%
+    mutate({{weekend_col}} := ifelse(wday(date) %in% c(1, 7), "Yes", "No"))
+
+  for (i in seq_len(nrow(df))) {
+    if (df[[holiday_col]][i] == "Yes" || df[[weekend_col]][i] == "Yes") {
+      j <- i - 1
+      while (j >= 1 && (df[[holiday_col]][j] == "Yes" || df[[weekend_col]][j] == "Yes")) {
+        j <- j - 1
+      }
+      
+      if (j >= 1) {
+        if (df[[pay_day_col]][i] == 1) {
+          df[[pay_day_col]][j] <- df[[pay_day_col]][j] + df[[pay_day_col]][i]
+          df[[pay_day_col]][i] <- 0
+        }
+        if (df[[pension_col]][i] == 1) {
+          df[[pension_col]][j] <- df[[pension_col]][j] + df[[pension_col]][i]
+          df[[pension_col]][i] <- 0
+        }
+      } else {
+        df[[pay_day_col]][i] <- 0
+        df[[pension_col]][i] <- 0
+      }
+    }
+  }
+
+  return(df)
+}
+adjusted_df <- adjust_payments(df, "holiday_column_name", "weekend_column_name", "pay_day_column_name", "pension_column_name")
+
+
+######
+
+adjust_payments <- function(df, holiday_cols, weekend_col, pay_day_cols) {
+  df <- df %>%
+    mutate({{weekend_col}} := ifelse(wday(date) %in% c(1, 7), "Yes", "No"))
+
+  if (length(holiday_cols) != length(pay_day_cols)) {
+    stop("The number of holiday columns must match the number of pay day columns.")
+  }
+
+  for (idx in seq_along(holiday_cols)) {
+    holiday_col <- holiday_cols[idx]
+    pay_day_col <- pay_day_cols[idx]
+
+    for (i in seq_len(nrow(df))) {
+      if (df[[holiday_col]][i] == "Yes" || df[[weekend_col]][i] == "Yes") {
+        j <- i - 1
+        while (j >= 1 && (df[[holiday_col]][j] == "Yes" || df[[weekend_col]][j] == "Yes")) {
+          j <- j - 1
+        }
+        
+        if (j >= 1 && df[[pay_day_col]][i] == 1) {
+          df[[pay_day_col]][j] <- df[[pay_day_col]][j] + df[[pay_day_col]][i]
+          df[[pay_day_col]][i] <- 0
+        } else {
+          df[[pay_day_col]][i] <- 0
+        }
+      }
+    }
+  }
+
+  return(df)
+}
+holiday_columns = c("holiday_col1", "holiday_col2")
+pay_day_columns = c("pay_day_col1", "pay_day_col2")
+
+adjusted_df <- adjust_payments(df, holiday_columns, "weekend_column_name", pay_day_columns)
+
+
+
+
