@@ -1,4 +1,4 @@
-movePayday <- function(df, holidayColumn, paydayColumn) {
+movePaydayBackward <- function(df, holidayColumn, paydayColumn) {
   # Ensure the Date column is of Date type
   df$Date <- as.Date(df$Date)
   
