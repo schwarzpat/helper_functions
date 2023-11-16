@@ -9,7 +9,7 @@ movePayday <- function(df, holidayColumn, paydayColumn) {
       # Move the payday forward
       j <- i
       while (df[j, holidayColumn] != "None" || df[j, "Weekday"] == 1) {
-        j <- j + 1
+        j <- j - 1
         # Optional: Check for bounds of the dataframe
         if (j > nrow(df)) {
           break
@@ -38,7 +38,7 @@ movePaydayForward <- function(df, holidayColumn, paydayColumn) {
       # Move the payday forward
       j <- i
       while (df[j, holidayColumn] != "None" || df[j, "Weekday"] == 1) {
-        j <- j - 1
+        j <- j + 1
         # Optional: Check for bounds of the dataframe
         if (j < 1) {
           break
