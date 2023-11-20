@@ -88,4 +88,28 @@ test_that("Holiday before a weekend", {
   expected <- c(0, 0, 0, 0, 1) # The day after the weekend should be marked
   result <- is_next_workday_after_holiday(data$Holiday, data$Weekend)
   expect_equal(result, expected)
+
+
+# DO nothing if holiday was weekend anyway
+
+  is_next_workday_after_holiday <- function(holiday, weekend) {
+  length_h <- length(holiday)
+  next_workday_after_holiday <- rep(0, length_h)
+
+  for (i in 1:(length_h - 1)) {
+    if (holiday[i] == 1 && weekend[i] == 0) {  # Check if the holiday is on a weekday
+      # If the next day is a weekend, skip to the day after the weekend
+      j <- i + 1
+      while (j <= length_h && (weekend[j] == 1 || holiday[j] == 1)) {
+        j <- j + 1
+      }
+      if (j <= length_h) {
+        next_workday_after_holiday[j] <- 1
+      }
+    }
+  }
+
+  return(next_workday_after_holiday)
+}
+
 })
