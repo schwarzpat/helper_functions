@@ -16,30 +16,28 @@ data$SE <- ifelse(data$SE != "None", 1, 0)
 
 
 
-# Function to determine if the next day is a workday after a holiday for a specific country
-is_next_workday_after_holiday <- function(holiday, weekend) {
+# DO nothing if holiday was weekend anyway
+
+  is_next_workday_after_holiday <- function(holiday, weekend) {
   length_h <- length(holiday)
   next_workday_after_holiday <- rep(0, length_h)
 
   for (i in 1:(length_h - 1)) {
-    if (holiday[i] == 1) {
+    if (holiday[i] == 1 && weekend[i] == 0) {  # Check if the holiday is on a weekday
       # If the next day is a weekend, skip to the day after the weekend
-      if (i < length_h - 1 && weekend[i + 1] == 1) {
-        j <- i + 2
-        while (j <= length_h && weekend[j] == 1) {
-          j <- j + 1
-        }
-        if (j <= length_h && holiday[j] == 0) {
-          next_workday_after_holiday[j] <- 1
-        }
-      } else if (holiday[i + 1] == 0 && weekend[i + 1] == 0) {
-        # If the next day is a regular workday
-        next_workday_after_holiday[i + 1] <- 1
+      j <- i + 1
+      while (j <= length_h && (weekend[j] == 1 || holiday[j] == 1)) {
+        j <- j + 1
+      }
+      if (j <= length_h) {
+        next_workday_after_holiday[j] <- 1
       }
     }
   }
 
   return(next_workday_after_holiday)
+}
+
 }
 
 # Apply the function to create new columns for each country
@@ -90,26 +88,4 @@ test_that("Holiday before a weekend", {
   expect_equal(result, expected)
 
 
-# DO nothing if holiday was weekend anyway
 
-  is_next_workday_after_holiday <- function(holiday, weekend) {
-  length_h <- length(holiday)
-  next_workday_after_holiday <- rep(0, length_h)
-
-  for (i in 1:(length_h - 1)) {
-    if (holiday[i] == 1 && weekend[i] == 0) {  # Check if the holiday is on a weekday
-      # If the next day is a weekend, skip to the day after the weekend
-      j <- i + 1
-      while (j <= length_h && (weekend[j] == 1 || holiday[j] == 1)) {
-        j <- j + 1
-      }
-      if (j <= length_h) {
-        next_workday_after_holiday[j] <- 1
-      }
-    }
-  }
-
-  return(next_workday_after_holiday)
-}
-
-})
