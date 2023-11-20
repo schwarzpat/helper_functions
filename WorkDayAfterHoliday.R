@@ -14,38 +14,33 @@ data$NO <- ifelse(data$NO != "None", 1, 0)
 data$DK <- ifelse(data$DK != "None", 1, 0)
 data$SE <- ifelse(data$SE != "None", 1, 0)
 
+
+
 # Function to determine if the next day is a workday after a holiday for a specific country
 is_next_workday_after_holiday <- function(holiday, weekend) {
   length_h <- length(holiday)
   next_workday_after_holiday <- rep(0, length_h)
 
   for (i in 1:(length_h - 1)) {
-    if (holiday[i] == 1 && !weekend[i + 1] && holiday[i + 1] == 0) {
-      next_workday_after_holiday[i + 1] <- 1
-    }
-  }
-
-  # Adjust for holidays followed by weekends
-  for (i in 1:(length_h - 2)) {
-    if (holiday[i] == 1 && weekend[i + 1]) {
-      # Find the next weekday that is not a holiday
-      j <- i + 2
-      while(j <= length_h && (weekend[j] || holiday[j])) {
-        j <- j + 1
-      }
-      if(j <= length_h && next_workday_after_holiday[j] == 0) {
-        next_workday_after_holiday[j] <- 1
+    if (holiday[i] == 1) {
+      # If the next day is a weekend, skip to the day after the weekend
+      if (i < length_h - 1 && weekend[i + 1] == 1) {
+        j <- i + 2
+        while (j <= length_h && weekend[j] == 1) {
+          j <- j + 1
+        }
+        if (j <= length_h && holiday[j] == 0) {
+          next_workday_after_holiday[j] <- 1
+        }
+      } else if (holiday[i + 1] == 0 && weekend[i + 1] == 0) {
+        # If the next day is a regular workday
+        next_workday_after_holiday[i + 1] <- 1
       }
     }
   }
 
   return(next_workday_after_holiday)
 }
-
-
-
-
-
 
 # Apply the function to create new columns for each country
 data$WorkdayAfterHoliday_FI <- is_next_workday_after_holiday(data$FI, data$Weekend)
