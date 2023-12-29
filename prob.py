@@ -138,3 +138,34 @@ results_df = pd.DataFrame(results)
 results_df
 
 
+-----
+
+
+
+import pymc3 as pm
+import numpy as np
+
+# Sample data
+forecasts = np.array([2034, 2050, 2100, 2150, 2200])
+actuals = np.array([2317, 2075, 2150, 2175, 2250])
+
+# Calculate percent differences
+percent_diffs = (actuals - forecasts) / forecasts * 100
+
+# Bayesian model setup
+with pm.Model() as model:
+    # Define a prior distribution for the percent differences
+    # For example, a Normal distribution with a mean of 0 and a large standard deviation
+    percent_diff_prior = pm.Normal('percent_diff', mu=0, sigma=50)
+
+    # Likelihood function: how likely to observe data given the parameters
+    likelihood = pm.Normal('likelihood', mu=percent_diff_prior, sigma=20, observed=percent_diffs)
+
+    # Generate the posterior distribution
+    trace = pm.sample(1000)
+
+# Calculate posterior predictive percentiles
+posterior_percentiles = np.percentile(trace['percent_diff'], [10, 20, 30, 40, 50, 60, 70, 80, 90])
+
+# Displaying the results
+print(posterior_percentiles)
