@@ -60,3 +60,25 @@ for i in range(1, 10):
 plt.legend()
 plt.show()
 
+# Sample data: Replace with your actual forecast and real numbers
+forecasts <- c(100, 105, 110, 115, 120)
+actuals <- c(102, 107, 115, 117, 125)
+
+# Step 1: Calculate forecast errors
+errors <- actuals - forecasts
+
+# Step 2: Compute descriptive statistics
+mean_error <- mean(errors)
+sd_error <- sd(errors)
+
+# Step 3: Set your confidence interval (e.g., 95%)
+confidence_interval <- 0.95
+z_score <- qnorm(confidence_interval)
+
+# Step 4: Adjust forecasts
+# Assuming a normal distribution of errors
+adjusted_forecasts <- forecasts + z_score * sd_error
+
+# Display adjusted forecasts
+adjusted_forecasts
+
