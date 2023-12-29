@@ -105,3 +105,36 @@ for ci in confidence_intervals:
 results_df = pd.DataFrame(results)
 results_df
 
+import pandas as pd
+
+# Assuming df is a DataFrame with columns 'Actuals', 'Forecast', and 'errors'
+# Example DataFrame creation for demonstration
+# df = pd.DataFrame({
+#     'Actuals': [actual values here],
+#     'Forecast': [forecast values here],
+#     'errors': [error values here]
+# })
+
+# Compute descriptive statistics
+mean_forecast = df['Forecast'].mean()
+sd_error = df['errors'].std()
+
+# Confidence intervals
+confidence_intervals = [0.90, 0.95, 0.99]
+
+# Calculate the adjustment percentage for each confidence interval
+results = []
+for ci in confidence_intervals:
+    z_score = pd.Series([ci]).quantile()  # Using pandas quantile method to get the z-score
+    adjustment_factor = z_score * sd_error
+    adjustment_percentage = (adjustment_factor / mean_forecast) * 100
+    results.append({
+        "Confidence Interval (%)": ci * 100,
+        "Adjustment Percentage (%)": adjustment_percentage
+    })
+
+# Create a DataFrame to display the results
+results_df = pd.DataFrame(results)
+results_df
+
+
