@@ -34,3 +34,29 @@ results_df = pd.DataFrame({
 })
 
 results_df
+
+# Generating a sample of 30 forecast errors (for illustration)
+np.random.seed(0)  # For reproducibility
+sample_errors = np.random.normal(0, 10, 30)  # Sample errors with mean=0 and std=10
+
+# Sorting errors from highest to lowest
+sorted_sample_errors = np.sort(sample_errors)[::-1]
+
+# Plotting errors
+plt.figure(figsize=(12, 7))
+plt.plot(sorted_sample_errors, marker='o', linestyle='-', color='blue')
+plt.title("Sample Forecast Errors (30 Data Points) from Highest to Lowest")
+plt.xlabel("Observation")
+plt.ylabel("Error")
+
+# Adding lines for 10% increments
+num_errors = len(sorted_sample_errors)
+for i in range(1, 10):
+    percentile_index = int(np.ceil(num_errors * (i / 10))) - 1
+    percentile_value = sorted_sample_errors[percentile_index]
+    plt.axhline(y=percentile_value, color='red', linestyle='--', alpha=0.7, 
+                label=f"{i*10}th percentile" if i == 1 else "")
+
+plt.legend()
+plt.show()
+
