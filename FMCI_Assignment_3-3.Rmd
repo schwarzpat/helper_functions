@@ -1,0 +1,455 @@
+---
+title: "Assignment 3: Tree-based models"
+subtitle: "Forecasting Methods and Causal Inference"
+author: "Patrick Schwarz"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: yes
+    toc_depth: '2'
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+# set seed
+library(tidyverse)
+library(tidymodels)
+library(vip)
+library(gt)
+set.seed(123765896)
+# global knitr options
+knitr::opts_chunk$set(eval=TRUE,cache=T, include=T, echo=T, error=F,message=FALSE,fig.align = "center", warning=FALSE,width=180,results='markup',fig.height = 4, fig.width = 8,fig.pos = "!H", out.extra = "",dev = c('png', 'pdf'),fig=FALSE,pointsize=10, comment=c(""),collapse=FALSE)
+
+```
+
+
+# Instructions
+
+In this assignment, you will re-estimate your baseline models using random forests. You will use the same prediction targets and predictors as in assignment 2, i.e. the features (independent variables / predictors / covariates) will be: four time-lags of the natural logarithm of the number of fatalities from state-based violence, as well as the `log1p(ged_sb_tsum_24)`, `log(wdi_sp_pop_totl)`, `log(wdi_ny_gdp_pcap_kd)`, and `vdem_v2x_libdem` variables. These are variables measuring conflict history, population size, GDP per capita, and the level of democracy. The data set can be downloaded from the studium page for the forecasting competition assignment.
+
+You will use two baseline models for each of the two prediction targets: the natural logarithm of the number of battle-related deaths (`log1p(ged_sb)`) and the binary variable indicating whether there was a battle-related death (`ged_dummy_sb`). In the first baseline model, you will only use the conflict history variables as the predictors, and in the second you will use all 8 predictors.
+
+## Tasks
+
+1. The first task is to ensure that the the prediction targets are in their appropriate transformation and appropriately shifted. You are to make predictions one-month-ahead for both the natural logarithm of the number of battle-related deaths (`log1p(ged_sb)`) and the binary variable indicating whether there was a battle-related death (`ged_dummy_sb`). You have to make these transformations, and then shift the data so that target values are one month ahead of the predictors. Also compute the natural logarithm of the four time lags of the number of fatalities from state based conflict for use in the conflict history baseline model. Note that how you shift the data will affect which variables you use for the time-lags of the prediction target.
+
+```{r}
+# Write your code here
+data <- read.csv("forecasting_competition2.csv")
+
+ 
+data_transformed <- data %>%
+  filter(wdi_sp_pop_totl != 0, wdi_ny_gdp_pcap_kd!=0) %>%
+  mutate(ged_dummy_sb = as.factor(case_when(
+    ged_sb == 0 ~ "no",
+    ged_sb > 0 ~ "yes"
+  ))) %>%
+  group_by(country_id) %>%
+  mutate(
+    log_ged_sb = log1p(ged_sb),
+    log_ged_sb_tlag_1 = log1p(ged_sb_tlag_1),
+    log_ged_sb_tlag_2 = log1p(ged_sb_tlag_2),
+    log_ged_sb_tlag_3 = log1p(ged_sb_tlag_3),
+    log_ged_sb_tlag_4 = log1p(ged_sb_tlag_4),
+    log_ged_sb_tsum_24 = log1p(ged_sb_tsum_24),
+    log_wdi_ny_gdp_pcap_kd = log1p(wdi_ny_gdp_pcap_kd),
+    log_wdi_sp_pop_totl = log1p(wdi_sp_pop_totl)
+  )  %>%
+  mutate(
+    log_wdi_ny_gdp_pcap_kd_tlag_1 = lag(log_wdi_ny_gdp_pcap_kd, 1),
+    log_wdi_ny_gdp_pcap_kd_tlag_2 = lag(log_wdi_ny_gdp_pcap_kd, 2),
+    log_wdi_ny_gdp_pcap_kd_tlag_3 = lag(log_wdi_ny_gdp_pcap_kd, 3),
+    log_wdi_ny_gdp_pcap_kd_tlag_4 = lag(log_wdi_ny_gdp_pcap_kd, 4),
+    log_wdi_sp_pop_totl_tlag_1 = lag(log_wdi_sp_pop_totl, 1),
+    log_wdi_sp_pop_totl_tlag_2 = lag(log_wdi_sp_pop_totl, 2),
+    log_wdi_sp_pop_totl_tlag_3 = lag(log_wdi_sp_pop_totl, 3),
+    log_wdi_sp_pop_totl_tlag_4 = lag(log_wdi_sp_pop_totl, 4),
+    vdem_v2x_libdem_tlag_1 = lag(vdem_v2x_libdem, 1),
+    vdem_v2x_libdem_tlag_2 = lag(vdem_v2x_libdem, 2),
+    vdem_v2x_libdem_tlag_3 = lag(vdem_v2x_libdem, 3),
+    vdem_v2x_libdem_tlag_4 = lag(vdem_v2x_libdem, 4),
+    log_ged_sb_tsum_24_tlag_1 = lag(log_ged_sb_tsum_24, 1),
+    log_ged_sb_tsum_24_tlag_2 = lag(log_ged_sb_tsum_24, 2),
+    log_ged_sb_tsum_24_tlag_3 = lag(log_ged_sb_tsum_24, 3),
+    log_ged_sb_tsum_24_tlag_4 = lag(log_ged_sb_tsum_24, 4)
+  ) %>%
+  mutate(
+    target_log_ged_sb = lead(log_ged_sb, 1),
+    target_ged_dummy_sb = lead(ged_dummy_sb, 1)
+  ) %>%
+  ungroup() %>%
+  drop_na()
+```
+
+
+2. Divide the data into a training set and a test set by setting aside the data for a test set. You can decide yourself which data you set aside for the test set. If you choose a different splitting routine compared to Assignment 2, explain your choice and the implications of it. Estimate (train) the random forest models on the training data and make predictions for the test test. Evaluate the models using the following metrics:
+  + Continuous target (`log1p(ged_sb)`): RMSE
+  + Binary target (`ged_dummy_sb`): Brier-score, AUROC, AUPR
+  
+------------------------------------------------------------------------
+
+The Complex Regression mode with a lower RMSE of 0.306, performs better than the Simple Regression model. This suggests that the complexity added to the model helps finding the signal in the data.
+
+For the Brier Score the Complex Classification model shows superior performance with a lower score, indicating more accurate probability predictions.
+
+AUROC: Both models perform exceptionally well, with scores nearing 1, but the Complex models higher score suggests its slightly better.
+
+AUPR: Here the complex models is classifying also slightly better.
+------------------------------------------------------------------------
+  
+```{r}
+# Write your code here
+train <- data_transformed %>%
+  filter(year < 2018)
+
+test <- data_transformed %>%
+  filter(year >= 2018)
+
+
+reg_tree_rec_1 <-
+  recipe(
+    target_log_ged_sb ~ log_ged_sb_tlag_1 + log_ged_sb_tlag_2 + log_ged_sb_tlag_3 + log_ged_sb_tlag_4 + log_ged_sb_tsum_24 + log_ged_sb_tsum_24_tlag_1 + log_ged_sb_tsum_24_tlag_2 + log_ged_sb_tsum_24_tlag_3 + log_ged_sb_tsum_24_tlag_4,
+    data = train
+  )
+
+reg_tree_rec_2 <-
+  recipe(
+    target_log_ged_sb ~ log_ged_sb_tlag_1 + log_ged_sb_tlag_2 + log_ged_sb_tlag_3 + log_ged_sb_tlag_4 + log_ged_sb_tsum_24 + log_ged_sb_tsum_24_tlag_1 + log_ged_sb_tsum_24_tlag_2 + log_ged_sb_tsum_24_tlag_3 + log_ged_sb_tsum_24_tlag_4 + log_wdi_ny_gdp_pcap_kd + log_wdi_sp_pop_totl + vdem_v2x_libdem + log_wdi_ny_gdp_pcap_kd_tlag_1 + log_wdi_ny_gdp_pcap_kd_tlag_2 + log_wdi_ny_gdp_pcap_kd_tlag_3 + log_wdi_ny_gdp_pcap_kd_tlag_4 + log_wdi_sp_pop_totl_tlag_1 + log_wdi_sp_pop_totl_tlag_2 + log_wdi_sp_pop_totl_tlag_3 + log_wdi_sp_pop_totl_tlag_4 + vdem_v2x_libdem_tlag_1 + vdem_v2x_libdem_tlag_2 + vdem_v2x_libdem_tlag_3 + vdem_v2x_libdem_tlag_4,
+    data = train
+  )
+
+log_tree_rec_1 <-
+  recipe(
+    target_ged_dummy_sb  ~ log_ged_sb_tlag_1 + log_ged_sb_tlag_2 + log_ged_sb_tlag_3 + log_ged_sb_tlag_4 + log_ged_sb_tsum_24,
+    data = train
+  )
+
+log_tree_rec_2 <-
+  recipe(
+    target_ged_dummy_sb  ~ log_ged_sb_tlag_1 + log_ged_sb_tlag_2 + log_ged_sb_tlag_3 + log_ged_sb_tlag_4 + log_ged_sb_tsum_24 + log_wdi_ny_gdp_pcap_kd + log_wdi_sp_pop_totl + vdem_v2x_libdem + log_wdi_ny_gdp_pcap_kd_tlag_1 + log_wdi_ny_gdp_pcap_kd_tlag_2 + log_wdi_ny_gdp_pcap_kd_tlag_3 + log_wdi_ny_gdp_pcap_kd_tlag_4 + log_wdi_sp_pop_totl_tlag_1 + log_wdi_sp_pop_totl_tlag_2 + log_wdi_sp_pop_totl_tlag_3 + log_wdi_sp_pop_totl_tlag_4 + vdem_v2x_libdem_tlag_1 + vdem_v2x_libdem_tlag_2 + vdem_v2x_libdem_tlag_3 + vdem_v2x_libdem_tlag_4,
+    data = train
+  )
+
+#ranger on the recipes using tidymodels
+reg_spec <- rand_forest(trees = 100) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("regression")
+
+class_spec <- rand_forest(trees = 100) %>%
+  set_engine("ranger", importance = "impurity") %>%
+  set_mode("classification")
+
+# Fitting the continuous target model
+reg_fit_1 <- workflow() %>%
+  add_recipe(reg_tree_rec_1) %>%
+  add_model(reg_spec) %>%
+  fit(data = train)
+
+reg_fit_2 <- workflow() %>%
+  add_recipe(reg_tree_rec_2) %>%
+  add_model(reg_spec) %>%
+  fit(data = train)
+
+class_fit_1 <- workflow() %>%
+  add_recipe(log_tree_rec_1) %>%
+  add_model(class_spec) %>%
+  fit(data = train)
+
+class_fit_2 <- workflow() %>%
+  add_recipe(log_tree_rec_2) %>%
+  add_model(class_spec) %>%
+  fit(data = train)
+
+#get metrics from. tain data
+
+
+reg_metrics_1 <- reg_fit_1 %>%
+  predict(test) %>%
+  bind_cols(test) %>%
+  rmse(truth = target_log_ged_sb, estimate = .pred)
+
+reg_metrics_2 <- reg_fit_2 %>%
+  predict(test) %>%
+  bind_cols(test) %>%
+  rmse(truth = target_log_ged_sb, estimate = .pred)
+
+#for classification get  Brier-score, AUROC, AUPR
+class_metrics <- metric_set(brier_class,
+                            roc_auc,
+                            pr_auc)
+class_metrics_1 <- class_fit_1 %>%
+  predict(test, type = "prob") %>%
+  bind_cols(test) %>%
+  class_metrics(target_ged_dummy_sb, .pred_no)
+
+class_metrics_2 <- class_fit_2 %>%
+  predict(test, type = "prob") %>%
+  bind_cols(test) %>%
+  class_metrics(target_ged_dummy_sb, .pred_no)
+
+bind_rows(
+  reg_metrics_1  %>%
+  mutate(model = "Simple Regression Random Forest"),
+  reg_metrics_2 %>%
+  mutate(model = "Complex Regression Random Forest"),
+  class_metrics_1  %>%
+  mutate(model = "Simple Classification Random Forest"),
+  class_metrics_2 %>%
+  mutate(model = "Complex Classification Random Forest")
+) %>%
+  select(model, .metric, .estimate)  %>%
+  gt() %>%
+  tab_header(title = "Model Performance Metrics",
+             subtitle = "Comparative metrics across different models") %>%
+  cols_label(model = "Model",
+             .metric = "Metric",
+             .estimate = "Estimate") %>%
+  tab_options(table.font.size = "small",
+              column_labels.font.size = "small") %>%
+  fmt_number(columns = vars(.estimate),
+             decimals = 3) %>%
+  cols_align(align = "center",
+             columns = everything())
+```
+
+3. Discuss the performance of the models and compare these to the performance of the models you estimated in Assignment 2. Discuss the differences between the random forests and regression models, and what the strengths and weaknesses are between the two types of models.
+
+------------------------------------------------------------------------
+
+your answer here
+
+------------------------------------------------------------------------
+
+
+4. Plot the AUROC and AUPR curves for the random forest models using the dummy variable as the prediction target. Briefly explain what we see in the figures and what the curves mean. If you want, you can also include the AUROC and AUPR curves for the logistic regression models from assignment 2.
+
+```{r}
+# Write your code here
+
+# AUROC
+roc_data_1 <- class_fit_1 %>%
+  predict(train, type = "prob") %>%
+  bind_cols(train) %>%
+  roc_curve(target_ged_dummy_sb, .pred_no)
+
+roc_data_2 <- class_fit_2 %>%
+  predict(train, type = "prob") %>%
+  bind_cols(train) %>%
+  roc_curve(target_ged_dummy_sb, .pred_no)
+
+roc_data_1$model <- "Simple Model"
+roc_data_2$model <- "Complex Model"
+
+combined_roc_data <- bind_rows(roc_data_1, roc_data_2)
+
+ggplot(combined_roc_data, aes(x = 1 - specificity, y = sensitivity, color = model)) +
+  geom_line() +
+  labs(title = "AUROC for Random Forest Classification Models",
+       x = "False Positive Rate",
+       y = "True Positive Rate",
+       color = "Model") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+# AUPR
+pr_data_1 <- class_fit_1 %>%
+  predict(train, type = "prob") %>%
+  bind_cols(train) %>%
+  pr_curve( target_ged_dummy_sb, .pred_no)
+
+pr_data_2 <- class_fit_2 %>%
+  predict(train, type = "prob") %>%
+  bind_cols(train) %>%
+  pr_curve( target_ged_dummy_sb,  .pred_no)
+
+pr_data_1$model <- "Simple Model"
+pr_data_2$model <- "Complex Model"
+
+combined_pr_data <- bind_rows(pr_data_1, pr_data_2)
+
+
+ggplot(combined_pr_data, aes(x = recall, y = precision, color = model)) +
+  geom_line() +
+  labs(title = "AUPR for Random Forest Classification Models",
+       x = "Recall",
+       y = "Precision",
+       color = "Model") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+------------------------------------------------------------------------
+
+Each curve in the ROC AUC represents one of the two models performance at all classification thresholds. The closer the curve follows the left-hand border and then the top border of the ROC space, the more accurate the test. Here the complex Model is better.
+
+The AUPR curve shows the trade-off between precision and recall for different thresholds. The closer the curve follows the top border of the space, the better the classifier. Here too, the complex model is better.
+
+------------------------------------------------------------------------
+
+
+5. Extract the variable importance scores from the random forest model with all eight predictors. Present these in an intuitive way, and briefly describe what they mean. 
+
+```{r}
+# Write your code here
+#vip
+reg_fit_2 %>%
+  extract_fit_parsnip() %>%
+  vip(num_features = 20) + 
+  labs(title = "Variable Importance Regression Model with 8 Predictors") +
+  theme_minimal()
+
+class_fit_2 %>%
+  extract_fit_parsnip() %>%
+  vip(num_features = 20) +
+  labs(title = "Variable Importance Classification Model with 8 Predictors") +
+  theme_minimal()
+```
+
+------------------------------------------------------------------------
+
+For the regression model, the top variables with the highest importance are:
+
+log_ged_sb_tlag_1
+log_ged_sb_tlag_2
+log_ged_sb_tsum_24
+
+For the classification model the top three most important predictors are:
+
+log_ged_sb_tlag_1
+log_ged_sb_tlag_2
+log_ged_sb_tlag_3
+
+Generally it seems like the regression model is making effective use of more variables than the classification model.
+
+------------------------------------------------------------------------
+
+6. Compare the variable importance scores from the random forest model with the coefficients from the regression models in Assignment 2. To what extent can the variable importance scores and coefficients be compared? In what ways are they similar and in what ways are they different?
+
+------------------------------------------------------------------------
+
+variables like log_ged_sb_tlag_1, log_ged_sb_tlag_2, and log_ged_sb_tsum_24 are significant in both Random Forest and regression models,which might indicate that they are generally important in this context independently of which models are used. The variables with low importance in Random Forest but significant coefficients in regression models or vice versa indicate that these are dependent on the type of model.
+
+------------------------------------------------------------------------
+
+
+7. Now repeat step 2 using repeated 5-fold cross-validation. Run at least 100 repeated CVs and report the mean of the evaluation metrics. 
+
+```{r}
+# Write your code here
+
+folds <- vfold_cv(train, v = 5, repeats = 100)
+
+reg_metrics_1 <- workflow() %>%
+  add_recipe(reg_tree_rec_1) %>%
+  add_model(reg_spec) %>%
+  fit_resamples(resamples = folds) %>%
+  collect_metrics()
+
+reg_metrics_2 <- workflow() %>%
+  add_recipe(reg_tree_rec_2) %>%
+  add_model(reg_spec) %>%
+  fit_resamples(resamples = folds) %>%
+  collect_metrics()
+
+class_metrics_1 <- workflow() %>%
+  add_recipe(log_tree_rec_1) %>%
+  add_model(class_spec) %>%
+  fit_resamples(resamples = folds,
+    metrics = metric_set(roc_auc, pr_auc, brier_class)) %>%
+  collect_metrics()
+
+class_metrics_2 <- workflow() %>%
+  add_recipe(log_tree_rec_2) %>%
+  add_model(class_spec) %>%
+  fit_resamples(resamples = folds,
+    metrics = metric_set(roc_auc, pr_auc, brier_class)) %>%
+  collect_metrics()
+```
+
+
+```{r}
+bind_rows(
+  reg_metrics_1 %>% mutate(model = "Simple Regression"),
+  reg_metrics_2 %>% mutate(model = "Complex Regression"),
+  class_metrics_1 %>% mutate(model = "Simple Classification"),
+  class_metrics_2 %>% mutate(model = "Complex Classification")
+) %>%
+  select(model, .metric, mean)  %>%
+  gt() %>%
+  tab_header(title = "Model Performance Metrics",
+             subtitle = "Comparative metrics across different models") %>%
+  cols_label(model = "Model",
+             .metric = "Metric",
+             mean = "Mean") %>%
+  tab_options(table.font.size = "small",
+              column_labels.font.size = "small") %>%
+  fmt_number(columns = vars(mean),
+             decimals = 3) %>%
+  cols_align(align = "center",
+             columns = everything())
+
+```
+
+------------------------------------------------------------------------
+
+your answer here
+
+------------------------------------------------------------------------
+
+
+8. Compare the results of 2 with 7. Are there any differences? 
+
+------------------------------------------------------------------------
+
+your answer here
+
+------------------------------------------------------------------------
+
+
+
+# Statement on use of GAI tools
+
+1.  Which generative AI tool(s) did you use in this assignment? List all that apply (delete those that don't apply, add any others)
+
+-   ChatGPT
+-   ChatGPT-4 with Advanced data analysis
+-   GPTstudio
+-   Bing
+-   Bard
+-   Copilot
+-   Consensus
+-   Scite
+-   Other (please list):
+
+2.  For which function(s) did you use generative AI tools? List all that apply (delete those that don't apply, add any others)
+
+-   Idea generation
+-   Providing information
+-   Explaining course material
+-   Summarizing or synthesizing readings
+-   Drafting content
+-   Learning programming
+-   Generating code
+-   Generating text
+-   Editing and proof-reading
+-   Providing feedback
+-   Other (please list):
+
+3.  Please briefly describe, in a paragraph, how you used generative AI tool(s) in this assignment.
+
+------------------------------------------------------------------------
+
+your answer here
+
+------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
