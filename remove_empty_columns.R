@@ -10,7 +10,8 @@ file_list <- list.files(path = folder_path, pattern = "\\.xlsx$", full.names = T
 
 clean_excel_file <- function(file_path) {
   data <- read_excel(file_path)
-  clean_data <- data[, colSums(is.na(data)) != nrow(data)]
+  data <- as.data.frame(lapply(data, function(x) if (is.character(x)) trimws(x) else x))
+  clean_data <- data[, colSums(data == 'NULL' | is.na(data) | data == "") != nrow(data)]
   file_name <- basename(file_path)
   clean_file_name <- sub("\\.xlsx$", "_clean.xlsx", file_name)
   write_xlsx(clean_data, file.path(folder_path, clean_file_name))
