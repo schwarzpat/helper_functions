@@ -1,20 +1,18 @@
-install.packages("readxl")
-install.packages("writexl")
-
 library(readxl)
-library(writexl)
+library(openxlsx)
+library(dplyr)
 
-folder_path <- "path_to_your_folder"
-
-file_list <- list.files(path = folder_path, pattern = "\\.xlsx$", full.names = TRUE)
+folder_path <- "your/folder/path"
+file_list <- list.files(path = folder_path, pattern = "*.xlsx", full.names = TRUE)
 
 clean_excel_file <- function(file_path) {
   data <- read_excel(file_path)
-  data <- as.data.frame(lapply(data, function(x) if (is.character(x)) trimws(x) else x))
-  clean_data <- data[, colSums(data == 'NULL' | is.na(data) | data == "") != nrow(data)]
-  file_name <- basename(file_path)
-  clean_file_name <- sub("\\.xlsx$", "_clean.xlsx", file_name)
-  write_xlsx(clean_data, file.path(folder_path, clean_file_name))
+  cols_to_keep <- sapply(data, function(col) {
+    any(!is.na(col) & col != 'NULL')
+  })
+  cleaned_data <- data[, cols_to_keep]
+  cleaned_file_path <- sub("\\.xlsx$", "_cleaned.xlsx", file_path)
+  write.xlsx(cleaned_data, cleaned_file_path)
 }
 
-sapply(file_list, clean_excel_file)
+lapply(file_list, clean_excel_file)
