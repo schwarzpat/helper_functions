@@ -47,7 +47,8 @@ def filter_excel_files(folder_path: str, search_text: str):
         raise ValueError("Provided path is not a valid folder")
 
     excel_files = list(folder.glob("*.xlsx"))
-
+    no_rows_files = []
+    
     for file_path in excel_files:
 
         df = pl.read_excel(file_path)
@@ -67,9 +68,28 @@ def filter_excel_files(folder_path: str, search_text: str):
 
         filtered_df = filtered_lazy_df.collect()
 
-        new_file_name = f"filtered_{file_path.name}"
-        new_file_path = folder / new_file_name
-        filtered_df.write_excel(new_file_path)
+        # Check if there are rows left after filtering
+        if filtered_df.height == 0:
+            no_rows_files.append(file_path.name)
+        else:
+            # Save the filtered DataFrame to a new Excel file
+            new_file_name = f"filtered_{file_path.name}"
+            new_file_path = folder / new_file_name
+            filtered_df.write_excel(new_file_path)
 
-    print(f"Filtered files saved in: {folder_path}")
+        if no_rows_files:
+            print("No rows left after filtering for the following files:")
+            for file_name in no_rows_files:
+                print(file_name)
+        else:
+            print("All files were successfully processed.")
+            
+     print(f"Filtered files saved in: {folder_path}")
+# Example usage:
+# filter_excel_files("path/to/your/folder", "apple")
+        
+
+
+
+   
 
