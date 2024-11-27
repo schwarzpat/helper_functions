@@ -30,7 +30,7 @@ print(filtered_df)
 ##################################
 
 import polars as pl
-import os
+import xlsxwriter
 from pathlib import Path
 
 def filter_excel_files(folder_path: str, search_text: str):
