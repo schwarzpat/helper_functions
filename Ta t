@@ -1,0 +1,71 @@
+library(readxl)
+library(tidyverse)
+library(timetk)
+library(lubridate)
+library(modeltime)
+library(modeltime.ensemble)
+library(tidymodels)
+library(prophet)
+
+# ---- LOAD DATA ----
+data_tbl <- read_excel("your_file.xlsx") %>%
+  mutate(
+    Month = match(Month, month.name),
+    date = as_date(make_date(Year, Month, 1))
+  ) %>%
+  select(date, y = `Sum of y`, se_workdays, dk_workdays, no_workdays, fi_workdays) %>%
+  arrange(date)
+
+# ---- SPLIT DATA (last 12 months for calibration) ----
+splits <- time_series_split(data_tbl %>% filter(!is.na(y)), assess = "12 months", cumulative = TRUE)
+
+# ---- FORMULA ----
+reg_formula <- y ~ date + se_workdays + dk_workdays + no_workdays + fi_workdays
+
+# ---- RECIPE FOR PROPHET ----
+rec_prophet <- recipe(reg_formula, data = training(splits)) %>%
+  step_mutate(ds = date, y = y)
+
+# ---- MODELS ----
+
+# ARIMA with regressors
+model_arima <- arima_reg() %>%
+  set_engine("auto_arima") %>%
+  workflow() %>%
+  add_formula(reg_formula) %>%
+  fit(training(splits))
+
+# Prophet with regressors
+model_prophet <- prophet_reg() %>%
+  set_engine("prophet") %>%
+  workflow() %>%
+  add_recipe(rec_prophet) %>%
+  fit(training(splits))
+
+# ---- MODEL TABLE ----
+models_tbl <- modeltime_table(
+  model_arima,
+  model_prophet
+)
+
+# ---- CALIBRATION ----
+calibration_tbl <- models_tbl %>%
+  modeltime_calibrate(new_data = testing(splits))
+
+# ---- AVERAGE FORECAST ----
+ensemble_fit <- calibration_tbl %>%
+  ensemble_average(type = "mean")
+
+# ---- FULL MODEL TABLE ----
+full_models_tbl <- modeltime_table(ensemble_fit)
+
+# ---- FORECAST: Historical + Future ----
+forecast_tbl <- full_models_tbl %>%
+  modeltime_forecast(
+    new_data = data_tbl %>% filter(date > max(pull(testing(splits), date))),
+    actual_data = data_tbl
+  )
+
+# ---- PLOT ----
+forecast_tbl %>%
+  plot_modeltime_forecast()
