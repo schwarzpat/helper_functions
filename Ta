@@ -1,0 +1,25 @@
+import polars as pl
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import DBSCAN
+from rapidfuzz import fuzz
+
+# Example data
+df = pl.DataFrame({
+    "purpose": ["Payment for invoice 123", "Invoice 123 payment", "Salary for Jan", "January salary", "Gift"],
+    "count": [5, 4, 10, 9, 2]
+})
+
+purposes = df["purpose"].str.to_lowercase().to_list()
+
+vectorizer = TfidfVectorizer(analyzer="char", ngram_range=(3,5))
+X = vectorizer.fit_transform(purposes)
+
+db = DBSCAN(eps=0.5, min_samples=1, metric="cosine").fit(X)
+labels = db.labels_
+
+df = df.with_columns(pl.Series("cluster", labels))
+
+grouped = df.group_by("cluster").agg([
+    pl.col("purpose"),
+    pl.col("count").sum()
+])
